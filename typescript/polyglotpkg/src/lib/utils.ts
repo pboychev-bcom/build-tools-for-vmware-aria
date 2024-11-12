@@ -219,21 +219,26 @@ export function notUndefined<T>(x: T | undefined): x is T {
  * @param cmd
  */
 export function run(cmd: string, args: Array<string> = [], cwd: string = process.cwd()): Promise<number> {
-	return new Promise((resolve, reject) => {
-		which(cmd, { all: true }, (err: Error | null, commandPath: string[] | undefined) => {
-			if (err || !commandPath) {
-				return reject(new Error(`Cannot find "${cmd}"`));
-			}
-			const proc = spawn(quoteString(commandPath[0]), args, { cwd, shell: true, stdio: 'inherit' });
-			proc.on('close', exitCode => {
-				if (exitCode !== 0) {
-					const commandLine = `${quoteString(commandPath[0])} ${args.join(' ')}`;
-					logger.error(`Error running command: ${commandLine}`);
-					return reject(new Error(`Exit code for ${cmd}: ${exitCode}`));
-				}
-				resolve(exitCode);
-			});
-		});
+	return new Promise(async (resolve, reject) => {
+        let err: any;
+        let commandPath: readonly string[] = [];
+        try {
+            commandPath = await which(cmd, { all: true, nothrow: false });
+        } catch(thrown) {
+            err = thrown;
+        }
+        if (err || !(commandPath && commandPath.length)) {
+            return reject(new Error(`Cannot find "${cmd}"`));
+        }
+        const proc = spawn(quoteString(commandPath[0]), args, { cwd, shell: true, stdio: 'inherit' });
+        proc.on('close', exitCode => {
+            if (exitCode !== 0) {
+                const commandLine = `${quoteString(commandPath[0])} ${args.join(' ')}`;
+                logger.error(`Error running command: ${commandLine}`);
+                return reject(new Error(`Exit code for ${cmd}: ${exitCode}`));
+            }
+            resolve(exitCode);
+        });
 	});
 }
 
