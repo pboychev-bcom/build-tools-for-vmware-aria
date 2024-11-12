@@ -12,15 +12,15 @@
  * This product may include a number of subcomponents with separate copyright notices and license terms. Your use of these subcomponents is subject to the terms and conditions of the subcomponent's license, as noted in the LICENSE file.
  * #L%
  */
-import fs from 'fs-extra';
 import path from 'path';
 import globby from 'globby';
 import Zip from 'adm-zip';
 
 import { Logger } from "winston";
 import { BaseStrategy } from "./base";
-import { run } from "../lib/utils";
+import { cpSync, run } from "../lib/utils";
 import { ActionOptions, PlatformDefinition, Events, BundleFileset } from "../lib/model";
+import { mkdirSync, readFileSync } from 'fs';
 
 export class PythonStrategy extends BaseStrategy {
 
@@ -49,7 +49,7 @@ export class PythonStrategy extends BaseStrategy {
 	 *              the "lib" subfolder of the bundle, rather than the root folder of the bundle where the source files
 	 *              go. This is an optional parameter and can be omitted or set to null empty array.
 	 */
-	protected async zipFilesAndDependencies(filesets: Array<BundleFileset>, dependencies?: Array<BundleFileset>) {
+	protected zipFilesAndDependencies(filesets: Array<BundleFileset>, dependencies?: Array<BundleFileset>) {
 		const zip = new Zip();
 
 		filesets.forEach(fileset => {
@@ -74,7 +74,7 @@ export class PythonStrategy extends BaseStrategy {
 			});
 		}
 
-		await fs.ensureDir(path.dirname(this.options.bundle));
+        mkdirSync(this.options.bundle, { recursive: true });
 		zip.writeZip(this.options.bundle);
 		this.logger.info(`Created ${this.options.bundle}`);
 	}
@@ -83,7 +83,7 @@ export class PythonStrategy extends BaseStrategy {
 	 * package project into bundle
 	 */
 	async packageProject() {
-		const polyglotJson = await fs.readJSONSync(this.options.polyglotJson) as PlatformDefinition;
+        const polyglotJson = JSON.parse(readFileSync(this.options.polyglotJson).toString("utf8")) as PlatformDefinition;
 
 		this.phaseCb(Events.COMPILE_START);
 		await this.compile(this.options.src, this.options.out);
@@ -125,7 +125,7 @@ export class PythonStrategy extends BaseStrategy {
 		this.logger.info(`Packaging ${filesToBundle.length + depsToBundle.length} files into bundle ${this.options.bundle}...`);
 		const actionBase = path.resolve(path.join(this.options.outBase, polyglotJson.platform.base ? polyglotJson.platform.base : 'out'));
 		this.logger.info(`Action base: ${actionBase}`);
-		await this.zipFilesAndDependencies(
+		this.zipFilesAndDependencies(
 			[{ files: filesToBundle, baseDir: actionBase }],
 			[{ files: depsToBundle, baseDir: this.DEPENDENCY_TEMP_DIR }]
 		);
@@ -133,19 +133,20 @@ export class PythonStrategy extends BaseStrategy {
 
 	private async compile(source: string, destination: string) {
 		this.logger.info(`Compiling project...`);
-		await fs.copy(source, destination);
+        // TODO: Replace with cpSync from the Node.js "fs" API when TypeScript and @types/node are bumped
+		cpSync(source, destination);
 		this.logger.info(`Compilation complete`);
 	}
 
 	private async installDependencies() {
 		const depsManifest = path.join(this.options.actionBase, 'requirements.txt');
-		const deps = await fs.readFile(depsManifest);
+		const deps = readFileSync(depsManifest);
 		const hash = this.getHash(deps.toString());
-		const existingHash = await this.readDepsHash(this.DEPENDENCY_TEMP_DIR);
+		const existingHash = this.readDepsHash(this.DEPENDENCY_TEMP_DIR);
 		if (existingHash !== hash) {
 			this.logger.info("Installing dependencies...");
 			await run("pip3", ["install", "-r", `"${depsManifest}"`, "--target", `"${this.DEPENDENCY_TEMP_DIR}"`, "--upgrade"]);
-			await this.writeDepsHash(deps.toString());
+			this.writeDepsHash(deps.toString());
 		} else {
 			this.logger.info("No change in dependencies. Skipping installation...");
 		}

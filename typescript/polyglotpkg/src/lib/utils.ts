@@ -14,7 +14,6 @@
  */
 
 import globby from 'globby';
-import fs from 'fs-extra';
 import which from 'which';
 import path from 'path';
 import { spawn } from 'child_process';
@@ -29,6 +28,7 @@ import {
 	PackagerOptions,
 } from './model';
 import createLogger from './logger';
+import { copyFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs';
 
 const logger = createLogger();
 
@@ -122,7 +122,7 @@ export async function getProjectActions(options: PackagerOptions, actionType?: A
 		if (pkg.length === 0) {
 			return [];
 		}
-		const pkgObj = await fs.readJSONSync(pkg[0]);
+		const pkgObj = JSON.parse(readFileSync(pkg[0]).toString("utf8"));
 
 		// Set options for a legacy project
 		let projectAction: ActionOptions =
@@ -155,7 +155,7 @@ export async function getProjectActions(options: PackagerOptions, actionType?: A
 		const outBasePath: string = path.join(options.workspace, 'out', actionFolder);
 		// To separate bundle.zip files of multiple actions they are created under project_root/dist/action_name/dist
 		const bundleZipPath: string = path.resolve('.', 'dist', actionFolder, 'dist', 'bundle.zip');
-		const pkgObj = await fs.readJSONSync(plg[i]);
+		const pkgObj = JSON.parse(readFileSync(plg[i]).toString("utf8"));
 		let projectAction: ActionOptions =
 		{
 			...options,
@@ -179,13 +179,13 @@ export async function getProjectActions(options: PackagerOptions, actionType?: A
  */
 export async function createPackageJsonForABX(options: ActionOptions, isMixed: boolean) {
 	const projectPkg = await getActionManifest(options.workspace) as PackageDefinition;
-	const polyglotPkg = isMixed && await fs.readJSONSync(options.polyglotJson) as AbxActionDefinition;
+	const polyglotPkg = isMixed && JSON.parse(readFileSync(options.polyglotJson).toString("utf8")) as AbxActionDefinition;
 	if (polyglotPkg && polyglotPkg.platform.action === "auto") {
 		polyglotPkg.platform.action = path.basename(options.actionBase);
 	}
 	const bundlePkg = isMixed ? { ...projectPkg, ...polyglotPkg } : projectPkg;
 	const actionDistPkgPath = path.join(options.workspace, 'dist', isMixed ? path.basename(options.actionBase) : "", 'package.json');
-	fs.writeJsonSync(actionDistPkgPath, bundlePkg);
+	writeFileSync(actionDistPkgPath, JSON.stringify(bundlePkg, null, 2));
 }
 
 /**
@@ -202,7 +202,7 @@ export async function getActionManifest(projectPath: string): Promise<AbxActionD
 		return null;
 	}
 
-	const pkgObj = await fs.readJSONSync(pkg[0]);
+	const pkgObj = JSON.parse(readFileSync(pkg[0]).toString("utf8"));
 	return pkgObj;
 }
 
@@ -244,4 +244,11 @@ export function run(cmd: string, args: Array<string> = [], cwd: string = process
 
 function quoteString(str: string) {
 	return /\s+/.test(str) ? `"${str}"` : str;
+}
+
+export function cpSync(source: string, destination: string) {
+    mkdirSync(destination, { recursive: true });
+    for (const file of readdirSync(source)) {
+        copyFileSync(`${source}/${file}`, `${destination}/${file}`);
+    }
 }
