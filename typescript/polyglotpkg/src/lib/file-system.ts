@@ -1,5 +1,19 @@
-import { copyFileSync, mkdirSync, readdirSync, statSync } from "fs";
-import { resolve, join } from "path";
+/*-
+ * #%L
+ * polyglotpkg
+ * %%
+ * Copyright (C) 2023 - 2024 VMware
+ * %%
+ * Build Tools for VMware Aria
+ * Copyright 2023 VMware, Inc.
+ *
+ * This product is licensed to you under the BSD-2 license (the "License"). You may not use this product except in compliance with the BSD-2 License.
+ *
+ * This product may include a number of subcomponents with separate copyright notices and license terms. Your use of these subcomponents is subject to the terms and conditions of the subcomponent's license, as noted in the LICENSE file.
+ * #L%
+ */
+import { copyFileSync, mkdirSync, readdirSync, realpathSync, statSync } from "fs";
+import { join } from "path";
 
 // TODO: Replace with cpSync from the Node.js "fs" API when TypeScript and @types/node are bumped
 export function cpSync(source: string, destination: string) {
@@ -38,27 +52,31 @@ export function findFiles(patterns: RegExp[] | string[], options: FindFilesOptio
     for (const _path of readdirSync(workPath)) {
         const fullPath = workPath === defaultPath ? _path : join(workPath, _path);
         statSync(fullPath).isFile()
-            ? files.push(fullPath.substring(path.length + 1))
+            ? files.push(fullPath)
             : directories.push(_path);
     }
 
-    const buildRegEx = (pattern: string) => {
-        const single = "{single}";
-        const singleRegex = "[a-z0-9\.]*";
-        const double = "{double}";
-        const doubleRegex = "[a-z0-9\.\/]*";
-        if (pattern.indexOf("**") !== -1) {
-            pattern = pattern.split("**").join(double);
+    const someMatch = (fileName: string, pattern: string|RegExp) => {
+        let regex: RegExp;
+        if (pattern instanceof RegExp) {
+            regex = pattern;
+        } else {
+            const single = "{single}";
+            const singleRegex = "[a-z0-9\-\_\.]*";
+            const double = "{double}";
+            const doubleRegex = "[a-z0-9\-\_\.\/]*";
+            if (pattern.indexOf("**") !== -1) {
+                pattern = pattern.split("**").join(double);
+            }
+            if (pattern.indexOf("*") !== -1) {
+                pattern = pattern.split("*").join(single);
+            }
+            pattern = pattern.split(single).join(singleRegex);
+            pattern = pattern.split(double).join(doubleRegex);
+            regex = new RegExp("^" + pattern + "$", "gi");
         }
-        if (pattern.indexOf("*") !== -1) {
-            pattern = pattern.split("*").join(single);
-        }
-        pattern = pattern.split(single).join(singleRegex);
-        pattern = pattern.split(double).join(doubleRegex);
-        return new RegExp("^" + pattern + "$", "gi");
+        return regex.test(fileName);
     };
-    const someMatch = (fileName: string, pattern: string|RegExp) =>
-        (pattern instanceof RegExp ? pattern : buildRegEx(pattern)).test(fileName);
     const checkMatch = (fileName: string) =>
         patterns.some(pattern => someMatch(fileName, pattern)
         ) && (
@@ -67,8 +85,9 @@ export function findFiles(patterns: RegExp[] | string[], options: FindFilesOptio
         );
 
     for (const file of files) {
-        if (checkMatch(file)) {
-            result.push(!!options.absolute ? resolve(file) : file);
+        const shortFileName = file.substring(path.length + 1);
+        if (checkMatch(shortFileName)) {
+            result.push(!!options.absolute ? realpathSync(file) : shortFileName);
         }
     }
 

@@ -84,7 +84,7 @@ export class NodejsStrategy extends BaseStrategy {
             absolute: true
         });
 
-        const depsToBundle = findFiles([ "**/*" ], {
+        const depsToBundle = findFiles([ "**" ], {
             path: this.DEPENDENCY_TEMP_DIR,
             absolute: true
         });
