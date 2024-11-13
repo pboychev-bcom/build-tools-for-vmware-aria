@@ -14,13 +14,13 @@
  */
 import ts from "typescript";
 import path from 'path';
-import globby from 'globby';
 
 import { Logger } from "winston";
 import { BaseStrategy } from "./base";
 import { getActionManifest, notUndefined, run } from "../lib/utils";
 import { ActionOptions, PackageDefinition, PlatformDefinition, Events } from "../lib/model";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
+import { findFiles } from "../lib/file-system";
 
 export class NodejsStrategy extends BaseStrategy {
 
@@ -66,7 +66,7 @@ export class NodejsStrategy extends BaseStrategy {
 				patterns[i] = patterns[i].replace('%src', this.options.src).replace('%out', this.options.out).replace(/\\/g, '/');
 			}
 		} else {
-			patterns.push('!.*', '*.js');
+			patterns.push('*.js');
 
 			if (tsconfig.options.outDir) {
 				const outDir = path.relative(workspaceFolderPath, path.join(baseDir, tsconfig.options.outDir));
@@ -79,15 +79,15 @@ export class NodejsStrategy extends BaseStrategy {
 			}
 		}
 
-		const filesToBundle = await globby(patterns, {
-			cwd: workspaceFolderPath,
-			absolute: true
-		});
+        const filesToBundle = findFiles(patterns, {
+            path: workspaceFolderPath,
+            absolute: true
+        });
 
-		const depsToBundle = await globby(`**/*`, {
-			cwd: this.DEPENDENCY_TEMP_DIR,
-			absolute: true,
-		});
+        const depsToBundle = findFiles([ "**/*" ], {
+            path: this.DEPENDENCY_TEMP_DIR,
+            absolute: true
+        });
 
 		this.logger.info(`Packaging ${filesToBundle.length + depsToBundle.length} files into bundle ${this.options.bundle}...`);
 		const actionBase = polyglotJson.platform.base ? path.resolve(polyglotJson.platform.base) : this.options.outBase;

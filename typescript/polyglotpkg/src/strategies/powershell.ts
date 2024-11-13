@@ -13,14 +13,13 @@
  * #L%
  */
 import path from 'path';
-import globby from 'globby';
 
 import { Logger } from "winston";
 import { BaseStrategy } from "./base";
 import { run } from "../lib/utils";
 import { ActionOptions, PlatformDefinition, Events } from "../lib/model";
 import { mkdirSync, readFileSync } from 'fs';
-import { cpSync } from '../lib/file-system';
+import { cpSync, findFiles } from '../lib/file-system';
 
 export class PowershellStrategy extends BaseStrategy {
 
@@ -55,19 +54,21 @@ export class PowershellStrategy extends BaseStrategy {
 				patterns[i] = patterns[i].replace('%src', this.options.src).replace('%out', this.options.out).replace(/\\/g, '/');
 			}
 		} else {
-			patterns.push('!.*', '*.ps1');
+			patterns.push('*.ps1');
 			const outDir = path.relative(workspaceFolderPath, this.options.out);
 			patterns.push(`${outDir}/**`);
 		}
 
-		const filesToBundle = await globby(patterns, {
-			cwd: workspaceFolderPath,
-			absolute: true
-		});
-		const modulesToBundle = await globby(['Modules'], {
-			cwd: this.options.outBase, // use action specific out subfolder
-			absolute: true,
-		});
+        const filesToBundle = findFiles(patterns, {
+            path: workspaceFolderPath,
+            absolute: true
+        });
+
+        const modulesToBundle = findFiles([ 'Modules' ], {
+            path: this.options.outBase, // use action specific out subfolder
+            absolute: true
+        });
+
 
 		this.logger.info(`Packaging ${filesToBundle.length} files into bundle ${this.options.bundle}...`);
 		const actionBase = polyglotJson.platform.base ? path.resolve(polyglotJson.platform.base) : this.options.outBase;

@@ -13,7 +13,7 @@ describe('E2E Tests', () => {
 
             beforeEach(`Cleaning up ${runtime}`, async () => {
                 process.chdir(processCwd);
-                await run('npm', ['run', 'clean'], path.join('test', 'e2e', runtime))
+                await run('npm', ['run', 'clean'], path.join('test', 'e2e', runtime));
             })
 
             it(`Packaging ${runtime}`, async () => {

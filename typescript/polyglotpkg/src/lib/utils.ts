@@ -13,7 +13,6 @@
  * #L%
  */
 
-import globby from 'globby';
 import which from 'which';
 import path from 'path';
 import { spawn } from 'child_process';
@@ -28,7 +27,8 @@ import {
 	PackagerOptions,
 } from './model';
 import createLogger from './logger';
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
+import { findFiles } from './file-system';
 
 const logger = createLogger();
 
@@ -106,18 +106,20 @@ export function determineActionType(pkg: PlatformDefinition, actionType?: Action
 export async function getProjectActions(options: PackagerOptions, actionType?: ActionType): Promise<ProjectActions> {
 
 	// Search for all polyglot.json files located in subfolders of src
-	const plg = await globby(['src/**/polyglot.json', '!**/node_modules/**'], {
-		cwd: options.workspace,
+    const plg = findFiles([ 'src/**/polyglot.json' ], {
+        exclude: [ '**/node_modules/**' ],
+		path: options.workspace,
 		absolute: true
-	});
+    });
 
 	if (plg.length === 0) {
 		// No polyglot.json found. Assuming legacy project.
 		// Locate package.json from project root
-		const pkg = await globby(['package.json', '!**/node_modules/**'], {
-			cwd: options.workspace,
-			absolute: true
-		});
+        const pkg = findFiles([ 'package.json' ], {
+            exclude: [ '**/node_modules/**' ],
+            path: options.workspace,
+            absolute: true
+        });
 
 		if (pkg.length === 0) {
 			return [];
@@ -193,10 +195,11 @@ export async function createPackageJsonForABX(options: ActionOptions, isMixed: b
  */
 export async function getActionManifest(projectPath: string): Promise<AbxActionDefinition | VroActionDefinition | null> {
 
-	const pkg = await globby(['package.json', '!**/node_modules/**'], {
-		cwd: projectPath,
-		absolute: true
-	});
+    const pkg = findFiles([ "package.json" ], {
+        exclude: [ "**/node_modules/**" ],
+        path: projectPath,
+        absolute: true,
+    })
 
 	if (pkg.length === 0) {
 		return null;

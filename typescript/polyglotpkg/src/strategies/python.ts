@@ -13,7 +13,6 @@
  * #L%
  */
 import path from 'path';
-import globby from 'globby';
 import Zip from 'adm-zip';
 
 import { Logger } from "winston";
@@ -21,7 +20,7 @@ import { BaseStrategy } from "./base";
 import { run } from "../lib/utils";
 import { ActionOptions, PlatformDefinition, Events, BundleFileset } from "../lib/model";
 import { mkdirSync, readFileSync } from 'fs';
-import { cpSync } from '../lib/file-system';
+import { cpSync, findFiles } from '../lib/file-system';
 
 export class PythonStrategy extends BaseStrategy {
 
@@ -108,20 +107,20 @@ export class PythonStrategy extends BaseStrategy {
 				patterns[i] = patterns[i].replace('%src', this.options.src).replace('%out', this.options.out).replace(/\\/g, '/');
 			}
 		} else {
-			patterns.push('!.*', '*.py');
+			patterns.push('*.py');
 			const outDir = path.relative(workspaceFolderPath, this.options.out);
 			patterns.push(`${outDir}/**`);
 		}
 
-		const filesToBundle = await globby(patterns, {
-			cwd: workspaceFolderPath,
-			absolute: true
-		});
+        const filesToBundle = findFiles(patterns, {
+            path: workspaceFolderPath,
+            absolute: true
+        });
 
-		const depsToBundle = await globby(`**/*`, {
-			cwd: this.DEPENDENCY_TEMP_DIR,
-			absolute: true,
-		});
+        const depsToBundle = findFiles([ "**/*" ], {
+            path: this.DEPENDENCY_TEMP_DIR,
+            absolute: true
+        });
 
 		this.logger.info(`Packaging ${filesToBundle.length + depsToBundle.length} files into bundle ${this.options.bundle}...`);
 		const actionBase = path.resolve(path.join(this.options.outBase, polyglotJson.platform.base ? polyglotJson.platform.base : 'out'));
