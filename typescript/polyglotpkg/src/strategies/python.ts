@@ -18,9 +18,10 @@ import Zip from 'adm-zip';
 
 import { Logger } from "winston";
 import { BaseStrategy } from "./base";
-import { cpSync, run } from "../lib/utils";
+import { run } from "../lib/utils";
 import { ActionOptions, PlatformDefinition, Events, BundleFileset } from "../lib/model";
 import { mkdirSync, readFileSync } from 'fs';
+import { cpSync } from '../lib/file-system';
 
 export class PythonStrategy extends BaseStrategy {
 
@@ -133,7 +134,6 @@ export class PythonStrategy extends BaseStrategy {
 
 	private async compile(source: string, destination: string) {
 		this.logger.info(`Compiling project...`);
-        // TODO: Replace with cpSync from the Node.js "fs" API when TypeScript and @types/node are bumped
 		cpSync(source, destination);
 		this.logger.info(`Compilation complete`);
 	}

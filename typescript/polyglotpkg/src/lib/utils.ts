@@ -245,10 +245,3 @@ export function run(cmd: string, args: Array<string> = [], cwd: string = process
 function quoteString(str: string) {
 	return /\s+/.test(str) ? `"${str}"` : str;
 }
-
-export function cpSync(source: string, destination: string) {
-    mkdirSync(destination, { recursive: true });
-    for (const file of readdirSync(source)) {
-        copyFileSync(`${source}/${file}`, `${destination}/${file}`);
-    }
-}
