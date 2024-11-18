@@ -6,9 +6,15 @@ RUN apt-get install -y openjdk-17-jdk
 RUN apt-get install -y software-properties-common
 RUN apt-get install -y maven
 
-# Install Node.js (npm is included in the package)
-RUN curl -fsSL https://deb.nodesource.com/setup_14.x | bash -
-RUN apt-get install -y nodejs
+# Install nvm with node and npm
+RUN curl https://raw.githubusercontent.com/creationix/nvm/v0.40.1/install.sh | bash \
+    && . /root/.nvm/nvm.sh \
+    && nvm install 20.18.0 \
+    && nvm alias default 20.18.0 \
+    && nvm use default
+
+ENV NODE_PATH=/bin/versions/node/v20.18.0/lib/node_modules
+ENV PATH=/bin/versions/node/v20.18.0/bin:$PATH
 
 # Print the versions
 RUN node -v
